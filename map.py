@@ -1,6 +1,7 @@
 import sqlite3
 import io
 import zlib
+import zstandard
 import array
 import os.path
 from util import *
@@ -30,6 +31,15 @@ class Map(object):
             return DummyMapBlock()
         f = io.BytesIO(r[0])
         version = readU8(f)
+
+        # decompress the whole block with zstd (version >= 29)
+        if version >= 29:
+            dctx = zstandard.ZstdDecompressor()
+            dobj = dctx.decompressobj()
+            decompressed = array.array("B", dobj.decompress(f.read()))
+            f.close()
+            f = io.BytesIO(decompressed)
+
         flags = f.read(1)
 
         # Check flags
@@ -41,33 +51,71 @@ class Map(object):
         if version >= 27:
             lighting_complete = readU16(f)
 
+        if version >= 29:
+            timestamp = readU32(f)
+            id_to_name = {}
+            name_id_mapping_version = readU8(f)
+            num_name_id_mappings = readU16(f)
+            for i in range(0, num_name_id_mappings):
+                node_id = readU16(f)
+                name_len = readU16(f)
+                name = f.read(name_len)
+                id_to_name[node_id] = name
+            #print(id_to_name)
+
         if version >= 22:
             content_width = readU8(f)
             params_width = readU8(f)
 
         # Node data
-        dec_o = zlib.decompressobj()
-        try:
-            mapdata = array.array("B", dec_o.decompress(f.read()))
-        except:
-            mapdata = []
+        if version < 29:
+            dec_o = zlib.decompressobj()
+            try:
+                mapdata = array.array("B", dec_o.decompress(f.read()))
+            except:
+                mapdata = []
+            # Reuse the unused tail of the file
+            f.close()
+            f = io.BytesIO(dec_o.unused_data)
+        else:
+            if content_width == 1:
+                mapdata = array.array("B", f.read(4096*3))
+            else:
+                mapdata = array.array("B", f.read(4096*4))
 
-        # Reuse the unused tail of the file
-        f.close()
-        f = io.BytesIO(dec_o.unused_data)
+        ### note - for v29, everything is parsed correctly up to here at least
+        # we have all we need at this point, so return
+        # also, there's some bug with the parsing or decompression for 29+
+        # so it will fail after this anyway - TBD
+        if version >= 29:
+            return MapBlock(id_to_name, mapdata)
 
         # zlib-compressed node metadata list
-        dec_o = zlib.decompressobj()
-        try:
-            metaliststr = array.array("B", dec_o.decompress(f.read()))
-            # And do nothing with it
-        except:
-            metaliststr = []
+        if version < 29:
+            dec_o = zlib.decompressobj()
+            try:
+                metaliststr = array.array("B", dec_o.decompress(f.read()))
+                # And do nothing with it
+            except:
+                metaliststr = []
 
-        # Reuse the unused tail of the file
-        f.close()
-        f = io.BytesIO(dec_o.unused_data)
-        data_after_node_metadata = dec_o.unused_data
+            # Reuse the unused tail of the file
+            f.close()
+            f = io.BytesIO(dec_o.unused_data)
+            data_after_node_metadata = dec_o.unused_data
+        else:
+            meta_version = readU8(f) # should be 2
+            meta_count = readU16(f)
+            for i in range(0, meta_count):
+                meta_pos = readU16(f)
+                meta_num_vars = readU32(f)
+                for j in range(0, meta_num_vars):
+                    key_len = readU16(f)
+                    f.read(key_len)
+                    val_len = readU32(f)
+                    f.read(val_len)
+                    if meta_version >= 2:
+                        readU8(f)
 
         if version <= 21:
             # mapblockobject_count
@@ -100,17 +148,18 @@ class Map(object):
             # u8[data_size] data
             data = f.read(data_size)
 
-        timestamp = readU32(f)
+        if version < 29:
+            timestamp = readU32(f)
 
-        id_to_name = {}
-        if version >= 22:
-            name_id_mapping_version = readU8(f)
-            num_name_id_mappings = readU16(f)
-            for i in range(0, num_name_id_mappings):
-                node_id = readU16(f)
-                name_len = readU16(f)
-                name = f.read(name_len)
-                id_to_name[node_id] = name
+            id_to_name = {}
+            if version >= 22:
+                name_id_mapping_version = readU8(f)
+                num_name_id_mappings = readU16(f)
+                for i in range(0, num_name_id_mappings):
+                    node_id = readU16(f)
+                    name_len = readU16(f)
+                    name = f.read(name_len)
+                    id_to_name[node_id] = name
 
         # Node timers
         if version >= 25:
@@ -134,6 +183,9 @@ class MapBlock(object):
 
     def get(self, x, y, z):
         datapos = x + y * 16 + z * 256
+        #print("in get")
+        #print(datapos)
+        #print(self.mapdata)
         return self.id_to_name[(self.mapdata[datapos * 2] << 8) | (self.mapdata[datapos * 2 + 1])]
 
 

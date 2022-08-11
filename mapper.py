@@ -43,13 +43,24 @@ class Mapper:
         )
 
     def drawBlock(self, canvas, bx, by, bz, start):
+        return self.drawBlockAt(canvas, bx, by, bz, bx, by, bz, start, 3)
+
+    def drawBlockAt(self, canvas, bx, by, bz, dx, dy, dz, start, orientation):
         """ returns max y of visible node """
         map_block = self.map.getBlock(bx, by, bz)
         maxy = -1
         for y in range(NODES_PER_BLOCK):
             for z in range(NODES_PER_BLOCK):
                 for x in range(NODES_PER_BLOCK):
-                    node_name = map_block.get(x, y, z)
+                    node_name = ""
+                    if orientation == 1:
+                        node_name = map_block.get((NODES_PER_BLOCK-x-1), y, (NODES_PER_BLOCK-z-1))
+                    elif orientation == 2:
+                        node_name = map_block.get(x, y, (NODES_PER_BLOCK-z-1))
+                    elif orientation == 4:
+                        node_name = map_block.get((NODES_PER_BLOCK-x-1), y, z)
+                    else:
+                        node_name = map_block.get(x, y, z)
                     if node_name in node_definitions.INVISIBLE_NODES:
                         continue
                     node_image = (
@@ -57,15 +68,25 @@ class Mapper:
                         if node_name in self.node_images
                         else self.node_images[b"UNKNOWN_NODE"]
                     )
-                    self.drawNode(
-                        canvas,
-                        x + bx * NODES_PER_BLOCK,
-                        y + by * NODES_PER_BLOCK,
-                        z + bz * NODES_PER_BLOCK,
-                        node_image,
-                        start,
-                    )
-                    maxy = max(maxy, y + by * NODES_PER_BLOCK)
+                    if orientation == 2 or orientation == 4:
+                        self.drawNode(
+                            canvas,
+                            z + dx * NODES_PER_BLOCK,
+                            y + dy * NODES_PER_BLOCK,
+                            x + dz * NODES_PER_BLOCK,
+                            node_image,
+                            start,
+                        )
+                    else:
+                        self.drawNode(
+                            canvas,
+                            x + dx * NODES_PER_BLOCK,
+                            y + dy * NODES_PER_BLOCK,
+                            z + dz * NODES_PER_BLOCK,
+                            node_image,
+                            start,
+                        )
+                    maxy = max(maxy, y + dy * NODES_PER_BLOCK)
         return maxy
 
     def makeChunk(self, cx, cz):
@@ -88,14 +109,75 @@ class Mapper:
         return canvas, maxy
 
     def fullMap(self):
+         canvas = Image.new("RGBA", (5000, 5000))
+         start = (3000, 3000)
+         for y in range(-1, 10):
+             print(y)
+             for z in range(-5, 5):
+                 for x in range(-5, 5):
+                     self.drawBlock(canvas, x, y, z, start)
+         canvas.save("map.png")
+
+    # orientation can be 1-4
+    def mapAtXYWorldPlot(self, xy_x, xy_y, orientation):
+        cx = xToBlockCoordinate(xy_x)
+        cz = yToBlockCoordinate(xy_y)
         canvas = Image.new("RGBA", (5000, 5000))
-        start = (3000, 3000)
+        # center the image in the canvas (based on calculcations from makeChunk)
+        start = ((2500 + (BLOCK_SIZE * 3)) + (BLOCK_SIZE // 2 * (cx - cz + 1) - NODE_SIZE // 2),
+                 1000 + (BLOCK_SIZE // 4 * (BLOCKS_PER_CHUNK - cz - cx) - NODE_SIZE // 2))
+        for y in range(-2, 10):
+            print("Mapping y=%d" % y)
+            for z in range(8):
+                for x in range(8):
+                    # rotate the map based on orientation
+                    if orientation == 1:
+                        self.drawBlockAt(canvas, cx+(7-x), y, cz-z, cx+x, y, cz-(7-z), start, orientation)
+                    elif orientation == 2:
+                        self.drawBlockAt(canvas, cx+z, y, cz-x, cx+x, y, cz-(7-z), start, orientation)
+                    elif orientation == 3:
+                        self.drawBlockAt(canvas, cx+x, y, cz-(7-z), cx+x, y, cz-(7-z), start, orientation)
+                    else:
+                        self.drawBlockAt(canvas, cx+(7-z), y, cz-(7-x), cx+x, y, cz-(7-z), start, orientation)        
+        """ another way to write the code, kept here in case it helps with clarity
+        for y in range(-2, 10):
+            print("Mapping y=%d" % y)
+            reverse_z = cz - 7
+            xprime = cx + 7
+            reverse_xprime = cx
+            for z in range(cz, cz-8, -1):
+                reverse_x = cx
+                zprime = cz
+                reverse_zprime = cz - 7
+                for x in range(cx+7, cx-1, -1):
+                    if orientation == 1:
+                        self.drawBlockAt(canvas, x, y, z, reverse_x, y, reverse_z, start, orientation)
+                    elif orientation == 2:
+                        self.drawBlockAt(canvas, reverse_xprime, y, zprime, reverse_x, y, reverse_z, start, orientation)
+                    elif orientation == 3:
+                        self.drawBlockAt(canvas, reverse_x, y, reverse_z, reverse_x, y, reverse_z, start, orientation)
+                    else:
+                        self.drawBlockAt(canvas, xprime, y, reverse_zprime, reverse_x, y, reverse_z, start, orientation)
+                    reverse_x = reverse_x + 1
+                    zprime = zprime - 1
+                    reverse_zprime = reverse_zprime + 1
+                reverse_z = reverse_z + 1
+                xprime = xprime - 1
+                reverse_xprime = reverse_xprime + 1
+        """
+        canvas.save("mapxy-%d-%d-%d.png" % (xy_x, xy_y, orientation))
+
+    def mapPieceCenteredAtBlock(self, cx, cz):
+        canvas = Image.new("RGBA", (5000, 5000))
+        # center the image in the canvas (based on calculcations from makeChunk)
+        start = ((2500 - (BLOCK_SIZE // 2)) + (BLOCK_SIZE // 2 * (cx - cz + 1) - NODE_SIZE // 2),
+                 1250 + (BLOCK_SIZE // 4 * (BLOCKS_PER_CHUNK - cz - cx) - NODE_SIZE // 2))
         for y in range(-1, 10):
-            print(y)
-            for z in range(-5, 5):
-                for x in range(-5, 5):
+            print("Mapping y=%d" % y)
+            for z in range(cz-5, cz+5):
+                for x in range(cx-5, cx+5):
                     self.drawBlock(canvas, x, y, z, start)
-        canvas.save("map.png")
+        canvas.save("mapPiece.png")
 
     def chunks3(self, canvas, x, z, step):
         maxy = -1
@@ -184,6 +266,21 @@ def main():
     args = parse_arguments()
     map = Map(args.map_folder)
     mapper = Mapper(map)
+    
+    # test just print out a sample map
+    mapper.mapAtXYWorldPlot(75, 53, 1)
+    mapper.mapAtXYWorldPlot(22, 110, 1)
+    mapper.mapAtXYWorldPlot(46, 119, 1)
+    mapper.mapAtXYWorldPlot(4, 66, 1)
+    mapper.mapAtXYWorldPlot(13, 103, 1)
+    mapper.mapAtXYWorldPlot(37, 120, 1)
+    mapper.mapAtXYWorldPlot(119, 126, 1)
+    mapper.mapAtXYWorldPlot(31, 82, 1)
+    #mapper.mapAtXYWorldPlot(106, 36, 2)
+    #mapper.mapAtXYWorldPlot(106, 36, 3)
+    #mapper.mapAtXYWorldPlot(106, 36, 4)
+    return;
+
     raw_coords = list(map.getCoordinatesToDraw())
     coords = []
     for row, col in raw_coords:
