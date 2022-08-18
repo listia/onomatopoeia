@@ -182,6 +182,56 @@ def build_block(top, side):
 
     return img
 
+def build_slab_block(top, side, upper):
+    """From a top texture and a side texture, build a slab block image.
+    top and side should be 16x16 image objects. Returns a 24x24 image
+    """
+    # cut the side texture in half
+    mask = side.crop((0,8,16,16))
+    side = Image.new(side.mode, side.size, bgcolor)
+    alpha_over(side, mask,(0,0,16,8), mask)
+
+    # plain slab
+    top = transform_image_top(top)
+    side = transform_image_side(side)
+    otherside = side.transpose(Image.FLIP_LEFT_RIGHT)
+
+    sidealpha = side.split()[3]
+    side = ImageEnhance.Brightness(side).enhance(0.9)
+    side.putalpha(sidealpha)
+    othersidealpha = otherside.split()[3]
+    otherside = ImageEnhance.Brightness(otherside).enhance(0.8)
+    otherside.putalpha(othersidealpha)
+
+    # upside down slab
+    delta = 0
+    if upper:
+        delta = 6
+
+    img = Image.new("RGBA", (24,24), bgcolor)
+    alpha_over(img, side, (0,12 - delta), side)
+    alpha_over(img, otherside, (12,12 - delta), otherside)
+    alpha_over(img, top, (0,6 - delta), top)
+
+    # Manually touch up 6 pixels that leave a gap because of how the
+    # shearing works out. This makes the blocks perfectly tessellate-able
+    if upper:
+        for x,y in [(3,4), (7,2), (11,0)]:
+            # Copy a pixel to x,y from x+1,y
+            img.putpixel((x,y), img.getpixel((x+1,y)))
+        for x,y in [(13,17), (17,15), (21,13)]:
+            # Copy a pixel to x,y from x-1,y
+            img.putpixel((x,y), img.getpixel((x-1,y)))
+    else:
+        for x,y in [(3,10), (7,8), (11,6)]:
+            # Copy a pixel to x,y from x+1,y
+            img.putpixel((x,y), img.getpixel((x+1,y)))
+        for x,y in [(13,23), (17,21), (21,19)]:
+            # Copy a pixel to x,y from x-1,y
+            img.putpixel((x,y), img.getpixel((x-1,y)))
+
+    return img
+
 def build_full_block(top, side1, side2, side3, side4, bottom=None):
     """From a top texture, a bottom texture and 4 different side textures,
     build a full block with four differnts faces. All images should be 16x16 
@@ -278,4 +328,55 @@ def build_full_block(top, side1, side2, side3, side4, bottom=None):
         top = transform_image_top(top)
         alpha_over(img, top, (0, increment), top)
 
+    # Manually touch up 6 pixels that leave a gap because of how the
+    # shearing works out. This makes the blocks perfectly tessellate-able
+    for x,y in [(13,23), (17,21), (21,19)]:
+        # Copy a pixel to x,y from x-1,y
+        img.putpixel((x,y), img.getpixel((x-1,y)))
+    for x,y in [(3,4), (7,2), (11,0)]:
+        # Copy a pixel to x,y from x+1,y
+        img.putpixel((x,y), img.getpixel((x+1,y)))
+
+    return img
+
+def build_axis_block(top, side, data):
+    """
+    Build an block with Axis property.
+    data = {'y': 0, 'x': 1, 'z': 2}[axis]
+    """
+    def draw_x():
+        return build_full_block(side.rotate(90), None, None, top, side.rotate(90))
+
+    def draw_y():
+        return build_full_block(side, None, None, side.rotate(270), top)
+
+    draw_funcs = [draw_x, draw_y]
+
+    if data == 0:  # up
+        return build_block(top, side)
+    elif data == 1:  # x
+        return draw_funcs[(self.rotation + 0) % len(draw_funcs)]()
+    elif data == 2:  # y
+        return draw_funcs[(self.rotation + 1) % len(draw_funcs)]()
+
+def build_sprite(side):
+    """From a side texture, create a sprite-like texture such as those used
+    for spiderwebs or flowers."""
+    img = Image.new("RGBA", (24,24), bgcolor)
+
+    side = transform_image_side(side)
+    otherside = side.transpose(Image.FLIP_LEFT_RIGHT)
+
+    alpha_over(img, side, (6,3), side)
+    alpha_over(img, otherside, (6,3), otherside)
+    return img
+
+def build_billboard(tex):
+    """From a texture, create a billboard-like texture such as
+    those used for tall grass or melon stems.
+    """
+    img = Image.new("RGBA", (24,24), bgcolor)
+
+    front = tex.resize((14, 12), Image.ANTIALIAS)
+    alpha_over(img, front, (5,9))
     return img

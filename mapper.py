@@ -8,7 +8,7 @@ import time
 from PIL import Image, ImageDraw
 
 from map import Map
-from blocks import build_block
+from blocks import build_block, build_full_block, build_sprite, build_billboard, alpha_over
 from constants import *
 from util import *
 import node_definitions
@@ -24,22 +24,42 @@ class Mapper:
     def set_up_images(self):
         """Generate an image for each node and load the mask"""
         self.node_images = {}
+        self.masks = {}
         textures = node_definitions.NODE_TEXTURES
-        for node_name, (texture_top, texture_side) in textures.items():
-            top = Image.open(os.path.join("textures", texture_top)).convert("RGBA")
-            side = Image.open(os.path.join("textures", texture_side)).convert("RGBA")
-            self.node_images[str.encode(node_name, "ascii")] = build_block(top, side)
-        self.mask = Image.open("mask.png").convert("1")
+        default_mask = Image.open("mask.png").convert("1")
+        for node_name, (texture_top, texture_side, texture_bottom) in textures.items():
+            top = Image.open(os.path.join("textures", texture_top)).convert("RGBA") if texture_top != "" else None
+            side = Image.open(os.path.join("textures", texture_side)).convert("RGBA") if texture_side != "" else None
+            bottom = Image.open(os.path.join("textures", texture_bottom)).convert("RGBA") if texture_bottom != "" else None
+            # only bottom texture, means it is a flat block, like lily pads
+            if bottom != None and top == None and side == None:
+                self.node_images[str.encode(node_name, "ascii")] = build_full_block(None, None, None, None, None, bottom)
+                self.masks[str.encode(node_name, "ascii")] = None
+            # only side texture, means it is a sprite, like flowers
+            elif side != None and top == None and bottom == None:
+                self.node_images[str.encode(node_name, "ascii")] = build_sprite(side)
+                self.masks[str.encode(node_name, "ascii")] = None
+            # only top texture, means it is a billboard block, like reeds
+            elif top != None and side == None and bottom == None:
+                self.node_images[str.encode(node_name, "ascii")] = build_billboard(top)
+                self.masks[str.encode(node_name, "ascii")] = None
+            # otherwise, build a regular block
+            else:
+                self.node_images[str.encode(node_name, "ascii")] = build_block(top, side)
+                self.masks[str.encode(node_name, "ascii")] = None # or default_mask if you don't want to use alpha channel from the textures
+        #self.mask = Image.open("mask.png").convert("1")
 
-    def drawNode(self, canvas, x, y, z, block, start):
+    def drawNode(self, canvas, x, y, z, block, start, mask):
         """Draw the three sides of a single node"""
+        if mask == None:
+            mask = block
         canvas.paste(
             block,
             (
                 start[0] + NODE_SIZE // 2 * (z - x),
                 start[1] + NODE_SIZE // 4 * (x + z - 2 * y),
             ),
-            self.mask,
+            mask,
         )
 
     def drawBlock(self, canvas, bx, by, bz, start):
@@ -68,6 +88,11 @@ class Mapper:
                         if node_name in self.node_images
                         else self.node_images[b"UNKNOWN_NODE"]
                     )
+                    mask = (
+                        self.masks[node_name]
+                        if node_name in self.masks
+                        else None
+                    )
                     if orientation == 2 or orientation == 4:
                         self.drawNode(
                             canvas,
@@ -76,6 +101,7 @@ class Mapper:
                             x + dz * NODES_PER_BLOCK,
                             node_image,
                             start,
+                            mask
                         )
                     else:
                         self.drawNode(
@@ -85,6 +111,7 @@ class Mapper:
                             z + dz * NODES_PER_BLOCK,
                             node_image,
                             start,
+                            mask
                         )
                     maxy = max(maxy, y + dy * NODES_PER_BLOCK)
         return maxy
@@ -268,13 +295,15 @@ def main():
     mapper = Mapper(map)
     
     # test just print out a sample map
-    mapper.mapAtXYWorldPlot(75, 53, 1)
-    mapper.mapAtXYWorldPlot(22, 110, 1)
-    mapper.mapAtXYWorldPlot(46, 119, 1)
-    mapper.mapAtXYWorldPlot(4, 66, 1)
-    mapper.mapAtXYWorldPlot(13, 103, 1)
-    mapper.mapAtXYWorldPlot(37, 120, 1)
-    mapper.mapAtXYWorldPlot(119, 126, 1)
+    mapper.mapAtXYWorldPlot(100, 100, 1)
+    mapper.mapAtXYWorldPlot(71, 59, 1)
+    mapper.mapAtXYWorldPlot(70, 59, 1)
+    mapper.mapAtXYWorldPlot(104, 39, 1)
+    mapper.mapAtXYWorldPlot(89, 66, 1)
+    mapper.mapAtXYWorldPlot(100, 35, 1)
+    mapper.mapAtXYWorldPlot(34, 105, 1)
+    mapper.mapAtXYWorldPlot(8, 100, 1)
+    mapper.mapAtXYWorldPlot(7, 7, 1)
     mapper.mapAtXYWorldPlot(31, 82, 1)
     #mapper.mapAtXYWorldPlot(106, 36, 2)
     #mapper.mapAtXYWorldPlot(106, 36, 3)
