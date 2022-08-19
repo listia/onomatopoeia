@@ -88,6 +88,14 @@ class Mapper:
                         if node_name in self.node_images
                         else self.node_images[b"UNKNOWN_NODE"]
                     )
+
+
+
+                    if not (node_name in self.node_images):
+                        print(node_name)
+
+
+
                     mask = (
                         self.masks[node_name]
                         if node_name in self.masks
@@ -147,6 +155,7 @@ class Mapper:
 
     # orientation can be 1-4
     def mapAtXYWorldPlot(self, xy_x, xy_y, orientation):
+        print("mapping x=%d and y=%d" % (xy_x, xy_y))
         cx = xToBlockCoordinate(xy_x)
         cz = yToBlockCoordinate(xy_y)
         canvas = Image.new("RGBA", (5000, 5000))
@@ -295,16 +304,13 @@ def main():
     mapper = Mapper(map)
     
     # test just print out a sample map
-    mapper.mapAtXYWorldPlot(100, 100, 1)
     mapper.mapAtXYWorldPlot(71, 59, 1)
     mapper.mapAtXYWorldPlot(70, 59, 1)
     mapper.mapAtXYWorldPlot(104, 39, 1)
-    mapper.mapAtXYWorldPlot(89, 66, 1)
     mapper.mapAtXYWorldPlot(100, 35, 1)
-    mapper.mapAtXYWorldPlot(34, 105, 1)
-    mapper.mapAtXYWorldPlot(8, 100, 1)
     mapper.mapAtXYWorldPlot(7, 7, 1)
     mapper.mapAtXYWorldPlot(31, 82, 1)
+    #mapper.mapAtXYWorldPlot(106, 36, 1)
     #mapper.mapAtXYWorldPlot(106, 36, 2)
     #mapper.mapAtXYWorldPlot(106, 36, 3)
     #mapper.mapAtXYWorldPlot(106, 36, 4)
