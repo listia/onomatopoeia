@@ -93,6 +93,8 @@ class Mapper:
 
                     if not (node_name in self.node_images):
                         print(node_name)
+                    elif node_name == b"UNKNOWN_NODE":
+                        print(node_name)
 
 
 
@@ -304,16 +306,18 @@ def main():
     mapper = Mapper(map)
     
     # test just print out a sample map
-    mapper.mapAtXYWorldPlot(71, 59, 1)
-    mapper.mapAtXYWorldPlot(70, 59, 1)
-    mapper.mapAtXYWorldPlot(104, 39, 1)
-    mapper.mapAtXYWorldPlot(100, 35, 1)
-    mapper.mapAtXYWorldPlot(7, 7, 1)
-    mapper.mapAtXYWorldPlot(31, 82, 1)
-    #mapper.mapAtXYWorldPlot(106, 36, 1)
-    #mapper.mapAtXYWorldPlot(106, 36, 2)
-    #mapper.mapAtXYWorldPlot(106, 36, 3)
-    #mapper.mapAtXYWorldPlot(106, 36, 4)
+    mapper.mapAtXYWorldPlot(16, 110, 1)
+    mapper.mapAtXYWorldPlot(31, 94, 1)
+    mapper.mapAtXYWorldPlot(31, 58, 1)
+    mapper.mapAtXYWorldPlot(16, 10, 1)
+    mapper.mapAtXYWorldPlot(24, 10, 1)
+    mapper.mapAtXYWorldPlot(45, 5, 1)
+    mapper.mapAtXYWorldPlot(104, 6, 1)
+    mapper.mapAtXYWorldPlot(111, 17, 1)
+    mapper.mapAtXYWorldPlot(122, 23, 1)
+    mapper.mapAtXYWorldPlot(120, 25, 1)
+    mapper.mapAtXYWorldPlot(114, 54, 1)
+    mapper.mapAtXYWorldPlot(104, 46, 1)
     return;
 
     raw_coords = list(map.getCoordinatesToDraw())
