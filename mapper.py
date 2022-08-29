@@ -170,7 +170,7 @@ class Mapper:
         # center the image in the canvas (based on calculcations from makeChunk)
         start = ((2500 + (BLOCK_SIZE * 3)) + (BLOCK_SIZE // 2 * (cx - cz + 1) - NODE_SIZE // 2),
                  1000 + (BLOCK_SIZE // 4 * (BLOCKS_PER_CHUNK - cz - cx) - NODE_SIZE // 2))
-        for y in range(-3, 10):
+        for y in range(-2, 10):
             print("Mapping y=%d" % y)
             for z in range(8):
                 for x in range(8):
