@@ -11,11 +11,15 @@ from PIL import Image, ImageEnhance, ImageOps, ImageDraw
 import logging
 import functools
 
+# This is here for circular import reasons.
+# Please don't ask, I choose to repress these memories.
+# ... okay fine I'll tell you.
+# Initialising the C extension requires access to the globals above.
+# Due to the circular import, this wouldn't work, unless we reload the
+# module in the C extension or just move the import below its dependencies.
+from onomatopoeia.c_overviewer import alpha_over as c_alpha_over
 
 bgcolor=(26, 26, 26, 0)
-
-extension_alpha_over = None
-
 
 def alpha_over(dest, src, pos_or_rect=(0, 0), mask=None):
     """Composite src over dest, using mask as the alpha channel (if
@@ -26,16 +30,16 @@ def alpha_over(dest, src, pos_or_rect=(0, 0), mask=None):
     if mask == None:
         mask = src
 
-    global extension_alpha_over
-    if extension_alpha_over != None:
+    global c_alpha_over
+    if c_alpha_over != None:
         # extension ALWAYS expects rects, so convert if needed
         if len(pos_or_rect) == 2:
             pos_or_rect = (pos_or_rect[0], pos_or_rect[1], src.size[0], src.size[1])
-        extension_alpha_over(dest, src, pos_or_rect, mask)
+
+        c_alpha_over(dest, src, pos_or_rect, mask)
     else:
         # fallback
         dest.paste(src, pos_or_rect, mask)
-
 
 def transform_image_top(img):
     """Takes a PIL image and rotates it left 45 degrees and shrinks the y axis
@@ -327,6 +331,55 @@ def build_full_block(top, side1, side2, side3, side4, bottom=None):
     if top != None :
         top = transform_image_top(top)
         alpha_over(img, top, (0, increment), top)
+
+    # Manually touch up 6 pixels that leave a gap because of how the
+    # shearing works out. This makes the blocks perfectly tessellate-able
+    for x,y in [(13,23), (17,21), (21,19)]:
+        # Copy a pixel to x,y from x-1,y
+        img.putpixel((x,y), img.getpixel((x-1,y)))
+    for x,y in [(3,4), (7,2), (11,0)]:
+        # Copy a pixel to x,y from x+1,y
+        img.putpixel((x,y), img.getpixel((x+1,y)))
+
+    return img
+
+def build_full_transparent_block(top, side1, side2, side3, side4, bottom=None):
+    # Based on build_full_block but uses paste instead of alpha_over
+    # and also does not darken sides
+    img = Image.new("RGBA", (24,24), bgcolor)
+
+    # first back sides
+    if side1 != None :
+        side1 = transform_image_side(side1)
+        side1 = side1.transpose(Image.FLIP_LEFT_RIGHT)
+
+        img.paste(side1, (0,0), side1)
+
+
+    if side2 != None :
+        side2 = transform_image_side(side2)
+
+        img.paste(side2, (12,0), side2)
+
+    if bottom != None :
+        bottom = transform_image_top(bottom)
+        img.paste(bottom, (0,12), bottom)
+
+    # front sides
+    if side3 != None :
+        side3 = transform_image_side(side3)
+
+        img.paste(side3, (0,6), side3)
+
+    if side4 != None :
+        side4 = transform_image_side(side4)
+        side4 = side4.transpose(Image.FLIP_LEFT_RIGHT)
+
+        img.paste(side4, (12,6), side4)
+
+    if top != None :
+        top = transform_image_top(top)
+        img.paste(top, (0, 0), top)
 
     # Manually touch up 6 pixels that leave a gap because of how the
     # shearing works out. This makes the blocks perfectly tessellate-able

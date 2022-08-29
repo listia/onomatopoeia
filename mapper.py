@@ -8,7 +8,7 @@ import time
 from PIL import Image, ImageDraw
 
 from map import Map
-from blocks import build_block, build_full_block, build_sprite, build_billboard, alpha_over
+from blocks import build_block, build_full_block, build_sprite, build_billboard, alpha_over, build_full_transparent_block
 from constants import *
 from util import *
 import node_definitions
@@ -43,17 +43,23 @@ class Mapper:
             elif top != None and side == None and bottom == None:
                 self.node_images[str.encode(node_name, "ascii")] = build_billboard(top)
                 self.masks[str.encode(node_name, "ascii")] = None
+            # all textures, means it is a full block but designed to be transparent, like water
+            elif top != None and side != None and bottom != None:
+                # leave out the back sides for now, to make it appear even more transparent
+                self.node_images[str.encode(node_name, "ascii")] = build_full_transparent_block(top, None, None, side, side, bottom)
+                self.masks[str.encode(node_name, "ascii")] = None
             # otherwise, build a regular block
             else:
                 self.node_images[str.encode(node_name, "ascii")] = build_block(top, side)
                 self.masks[str.encode(node_name, "ascii")] = None # or default_mask if you don't want to use alpha channel from the textures
-        #self.mask = Image.open("mask.png").convert("1")
 
     def drawNode(self, canvas, x, y, z, block, start, mask):
         """Draw the three sides of a single node"""
         if mask == None:
             mask = block
-        canvas.paste(
+        #canvas.paste(
+        alpha_over(
+            canvas,
             block,
             (
                 start[0] + NODE_SIZE // 2 * (z - x),
@@ -164,7 +170,7 @@ class Mapper:
         # center the image in the canvas (based on calculcations from makeChunk)
         start = ((2500 + (BLOCK_SIZE * 3)) + (BLOCK_SIZE // 2 * (cx - cz + 1) - NODE_SIZE // 2),
                  1000 + (BLOCK_SIZE // 4 * (BLOCKS_PER_CHUNK - cz - cx) - NODE_SIZE // 2))
-        for y in range(-2, 10):
+        for y in range(-3, 10):
             print("Mapping y=%d" % y)
             for z in range(8):
                 for x in range(8):
@@ -210,7 +216,7 @@ class Mapper:
         # center the image in the canvas (based on calculcations from makeChunk)
         start = ((2500 - (BLOCK_SIZE // 2)) + (BLOCK_SIZE // 2 * (cx - cz + 1) - NODE_SIZE // 2),
                  1250 + (BLOCK_SIZE // 4 * (BLOCKS_PER_CHUNK - cz - cx) - NODE_SIZE // 2))
-        for y in range(-1, 10):
+        for y in range(-3, 10):
             print("Mapping y=%d" % y)
             for z in range(cz-5, cz+5):
                 for x in range(cx-5, cx+5):
@@ -306,9 +312,9 @@ def main():
     mapper = Mapper(map)
     
     # test just print out a sample map
-    mapper.mapAtXYWorldPlot(16, 110, 1)
-    mapper.mapAtXYWorldPlot(31, 94, 1)
-    mapper.mapAtXYWorldPlot(31, 58, 1)
+    mapper.mapAtXYWorldPlot(106, 36, 1)
+    mapper.mapAtXYWorldPlot(100, 35, 1)
+    mapper.mapAtXYWorldPlot(70, 59, 1)
     mapper.mapAtXYWorldPlot(16, 10, 1)
     mapper.mapAtXYWorldPlot(24, 10, 1)
     mapper.mapAtXYWorldPlot(45, 5, 1)
