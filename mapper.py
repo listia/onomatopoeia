@@ -169,7 +169,7 @@ class Mapper:
         canvas = Image.new("RGBA", (5000, 5000))
         # center the image in the canvas (based on calculcations from makeChunk)
         start = ((2500 + (BLOCK_SIZE * 3)) + (BLOCK_SIZE // 2 * (cx - cz + 1) - NODE_SIZE // 2),
-                 1000 + (BLOCK_SIZE // 4 * (BLOCKS_PER_CHUNK - cz - cx) - NODE_SIZE // 2))
+                 850 + (BLOCK_SIZE // 4 * (BLOCKS_PER_CHUNK - cz - cx) - NODE_SIZE // 2))
         for y in range(-2, 10):
             print("Mapping y=%d" % y)
             for z in range(8):
@@ -312,18 +312,8 @@ def main():
     mapper = Mapper(map)
     
     # test just print out a sample map
-    mapper.mapAtXYWorldPlot(106, 36, 1)
-    mapper.mapAtXYWorldPlot(100, 35, 1)
-    mapper.mapAtXYWorldPlot(70, 59, 1)
-    mapper.mapAtXYWorldPlot(16, 10, 1)
-    mapper.mapAtXYWorldPlot(24, 10, 1)
-    mapper.mapAtXYWorldPlot(45, 5, 1)
-    mapper.mapAtXYWorldPlot(104, 6, 1)
-    mapper.mapAtXYWorldPlot(111, 17, 1)
-    mapper.mapAtXYWorldPlot(122, 23, 1)
-    mapper.mapAtXYWorldPlot(120, 25, 1)
-    mapper.mapAtXYWorldPlot(114, 54, 1)
-    mapper.mapAtXYWorldPlot(104, 46, 1)
+    mapper.mapAtXYWorldPlot(73, 3, 1)
+    mapper.mapAtXYWorldPlot(31, 82, 1)
     return;
 
     raw_coords = list(map.getCoordinatesToDraw())
